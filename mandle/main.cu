@@ -21,28 +21,32 @@ void display(void);
 void reshape(int, int);
 void countFPS(void);
 
-
-
 int WIDTH = 512;
 int HEIGHT = 400;
 
-__global__ void mandel(int* output) {
+__global__ void mandel(int width, int height, int* output) {
+
+  int pixelx = blockIdx.x * blockDim.x + threadIdx.x;
+  int pixely = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if (pixelx > width || pixely > height)
+    return;
 
   float xstart = -2.0f;
   float ystart = 1.0f;
 
-  float widthPerPixel = 3.0f / 512;
-  float heightPerPixel = 2.0f / 400;
+  float widthPerPixel = 3.0f / width;
+  float heightPerPixel = 2.0f / height;
 
   float2 c;
-  c.x = xstart + widthPerPixel * threadIdx.x;
-  c.y = ystart - heightPerPixel * blockIdx.x;
+  c.x = xstart + widthPerPixel * pixelx;
+  c.y = ystart - heightPerPixel * pixely;
 
   float2 zn;
   zn.x = 0;
   zn.y = 0;
   
-  int pixelLoc = blockIdx.x * blockDim.x + threadIdx.x;
+  int pixelLoc = width*pixely + pixelx;
 
   for(int i = 0;i<50;i++) {
     //zn = zn*zn + c
@@ -72,7 +76,6 @@ __global__ void mandel(int* output) {
     }
   }
 }
-
 
 int main(int argc, char** argv) {
   setup(argc, argv);
@@ -156,7 +159,10 @@ void generateMandelbrot(GLuint pbo) {
   int *p;
   cudaGLMapBufferObject((void**)&p, pbo);
 
-  mandel<<<400,512>>>(p);
+  dim3 dimBlock(16, 16);
+  dim3 dimGrid((WIDTH + dimBlock.x - 1) / dimBlock.x, (HEIGHT + dimBlock.y - 1) / dimBlock.y);
+
+  mandel<<<dimGrid,dimBlock>>>(WIDTH, HEIGHT, p);
 
   cudaGLUnmapBufferObject(pbo);
   cudaGLUnregisterBufferObject(pbo);
