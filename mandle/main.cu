@@ -162,7 +162,7 @@ void generateMandelbrot(GLuint pbo) {
   dim3 dimBlock(16, 16);
   dim3 dimGrid((WIDTH + dimBlock.x - 1) / dimBlock.x, (HEIGHT + dimBlock.y - 1) / dimBlock.y);
 
-  mandel<<<dimGrid,dimBlock>>>(WIDTH, HEIGHT, p);
+  mandel<<<dimGrid, dimBlock>>>(WIDTH, HEIGHT, p);
 
   cudaGLUnmapBufferObject(pbo);
   cudaGLUnregisterBufferObject(pbo);
