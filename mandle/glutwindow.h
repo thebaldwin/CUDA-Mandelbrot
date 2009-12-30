@@ -26,7 +26,8 @@ public:
   GlutWindow(const char* windowText = DEFAULT_WINDOW_TEXT, int argc = 0, char** argv = 0, int width=800, int height=600);
   ~GlutWindow();
 
-  GLuint setupPBO();
+  static GLuint setupPBO();
+  static void displayPBO(GLuint);
 
 private:
   static void handleKeyInput(unsigned char, int, int);
@@ -38,6 +39,7 @@ private:
   static void mouseWheel(int, int, int, int);
 
   static void defaultGlutDrawLoop();
+
 };
 
 #endif

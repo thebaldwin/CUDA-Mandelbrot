@@ -1,5 +1,6 @@
 #include "glutwindow.h"
 
+#include <iostream>
 #include <ctime>
 
 #include <GL/glew.h>
@@ -20,6 +21,7 @@ GlutWindow* gw;
 int main(int argc, char** argv) {
   gw = new GlutWindow("Mandelbrot");
   glutDisplayFunc(glutDrawLoop);
+
   glutMainLoop();
 }
 
@@ -29,7 +31,7 @@ void glutDrawLoop(void) {
 
   GLuint pbo = gw->setupPBO();
   renderMandelbrot(pbo);
-  displayPBO(pbo);
+  gw->displayPBO(pbo);
 
   setWindowTitleStats();
 
@@ -126,10 +128,3 @@ __global__ void mandel(int width, int height, float xshift, float yshift, float 
   }
 }
 
-void displayPBO(GLuint pbo) {
-  glRasterPos2i(0,0);
-    
-  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, pbo);
-  glDrawPixels(gw->windowWidth, gw->windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, 0);
-}

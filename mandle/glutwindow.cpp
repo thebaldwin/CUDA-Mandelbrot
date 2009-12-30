@@ -98,8 +98,16 @@ GLuint GlutWindow::setupPBO(void) {
 
 void GlutWindow::handleKeyInput(unsigned char key, int /*x*/, int /*y*/) {
     switch(key) {
-    case(27) :
-        exit(0);
-        break;
+      case(27) :
+          exit(0);
+          break;
     }
+}
+
+void GlutWindow::displayPBO(GLuint pbo) {
+  glRasterPos2i(0,0);
+    
+  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, pbo);
+  glDrawPixels(windowWidth, windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, 0);
 }
