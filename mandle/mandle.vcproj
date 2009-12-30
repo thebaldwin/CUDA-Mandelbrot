@@ -18,7 +18,7 @@
 	</Platforms>
 	<ToolFiles>
 		<ToolFile
-			RelativePath="..\..\..\..\..\..\..\ProgramData\NVIDIA Corporation\NVIDIA GPU Computing SDK\C\common\Cuda.Rules"
+			RelativePath="..\..\..\ProgramData\NVIDIA Corporation\NVIDIA GPU Computing SDK\C\common\Cuda.Rules"
 		/>
 	</ToolFiles>
 	<Configurations>
@@ -37,6 +37,10 @@
 			/>
 			<Tool
 				Name="CUDA Build Rule"
+				AdditionalOptions=""
+				CompilerPath="1"
+				AlternateNvccPath="c:\cuda\bin64"
+				ExtraNvccOptions="-m32"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -53,7 +57,7 @@
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
-				RuntimeLibrary="2"
+				RuntimeLibrary="0"
 				UsePrecompiledHeader="0"
 				WarningLevel="4"
 				DebugInformationFormat="4"
@@ -69,7 +73,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="glut32.lib glew32.lib"
+				AdditionalDependencies="cudart.lib freeglut.lib glew32.lib opengl32.lib glu32.lib"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -112,6 +116,11 @@
 			/>
 			<Tool
 				Name="CUDA Build Rule"
+				Arch="11"
+				CompilerPath="1"
+				AlternateNvccPath="c:\cuda\bin64"
+				Emulation="false"
+				Warning="3"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -145,7 +154,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="glut64.lib glew64.lib cudart.lib"
+				AdditionalDependencies="glew64.lib cudart.lib opengl32.lib glu32.lib freeglut.lib"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -340,8 +349,21 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\glutwindow.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\main.cu"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="CUDA Build Rule"
+						CompilerPath="0"
+						AlternateNvccPath=""
+					/>
+				</FileConfiguration>
 			</File>
 		</Filter>
 		<Filter
@@ -349,6 +371,10 @@
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath=".\glutwindow.h"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Resource Files"

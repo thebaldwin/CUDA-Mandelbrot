@@ -1,119 +1,37 @@
-#include <iostream>
-#include <complex>
+#include "glutwindow.h"
+
+#include <ctime>
+
 #include <GL/glew.h>
-#include <GL/glut.h>
-#include <stdlib.h>
-#include <windows.h>
+#include <GL/freeglut.h>
 
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
 
-using namespace std;
+void glutDrawLoop(void);
+void setWindowTitleStats(void);
+void renderMandelbrot(GLuint pbo);
+void displayPBO(GLuint pbo);
 
-void handleKeyInput(unsigned char, int, int);
-void setup(int, char**);
+__global__ void mandel(int width, int height, float xshift, float yshift, float zoomFactor, int* output);
 
-GLuint setupPBO();
-void generateMandelbrot(GLuint pbo);
-void drawMandelbrot(GLuint pbo);
-
-void display(void);
-void reshape(int, int);
-void countFPS(void);
-
-int WIDTH = 512;
-int HEIGHT = 400;
-
-__global__ void mandel(int width, int height, int* output) {
-
-  int pixelx = blockIdx.x * blockDim.x + threadIdx.x;
-  int pixely = blockIdx.y * blockDim.y + threadIdx.y;
-
-  if (pixelx > width || pixely > height)
-    return;
-
-  float xstart = -2.0f;
-  float ystart = 1.0f;
-
-  float widthPerPixel = 3.0f / width;
-  float heightPerPixel = 2.0f / height;
-
-  float2 c;
-  c.x = xstart + widthPerPixel * pixelx;
-  c.y = ystart - heightPerPixel * pixely;
-
-  float2 zn;
-  zn.x = 0;
-  zn.y = 0;
-  
-  int pixelLoc = width*pixely + pixelx;
-
-  for(int i = 0;i<50;i++) {
-    //zn = zn*zn + c
-    float newznx = zn.x * zn.x - zn.y*zn.y + c.x;
-    float newzny = zn.y * zn.x + zn.x * zn.y + c.y;
-    
-    zn.x = newznx;
-    zn.y = newzny;
-  
-    if (zn.x*zn.x + zn.y*zn.y > 4) {
-      int r,g,b;
-
-      //colour it white if it took longer to leave the set
-      if (i < 50/2) {
-        r = (int)((i/25.0f)*255);
-        g = 0;
-        b = 0;
-      }
-      else {
-        r = 255;
-        g = (int)(((i-25)/25.0f)*255) << 8;
-        b = (int)(((i-25)/25.0f)*255) << 16;
-      }
-
-      output[pixelLoc] = r | g | b ;
-      break;
-    }
-  }
-}
+GlutWindow* gw;
 
 int main(int argc, char** argv) {
-  setup(argc, argv);
+  gw = new GlutWindow("Mandelbrot");
+  glutDisplayFunc(glutDrawLoop);
   glutMainLoop();
 }
 
-void setup(int argc, char** argv) {
-  glutInit(&argc, argv);
-  glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
-  glutInitWindowSize(WIDTH, HEIGHT);
-  glutCreateWindow("Mandelbrot");
-  glutKeyboardFunc(handleKeyInput);
-  glutDisplayFunc(display);
-  glutReshapeFunc(reshape);
-  
-  glewInit();
-}
-
-void reshape(int w, int h) {
-  WIDTH = w;
-  HEIGHT = h;
-
-  glViewport(0,0,GLsizei(w),GLsizei(h));
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  gluOrtho2D(0.0,GLdouble(w),0.0,GLdouble(h));
-  glMatrixMode(GL_MODELVIEW);
-}
-
-void display(void) {
-  glClearColor(0.0, 1.0, 1.0, 0.0);
+void glutDrawLoop(void) {
+  glClearColor(0.0f, 1.0f, 1.0f, 0.0f);
   glClear(GL_COLOR_BUFFER_BIT);
 
-  GLuint pbo = setupPBO();
-  generateMandelbrot(pbo);
-  drawMandelbrot(pbo);
+  GLuint pbo = gw->setupPBO();
+  renderMandelbrot(pbo);
+  displayPBO(pbo);
 
-  countFPS();
+  setWindowTitleStats();
 
   glutSwapBuffers();
   glutPostRedisplay();
@@ -121,57 +39,97 @@ void display(void) {
   glDeleteBuffers(1, &pbo);
 }
 
-void drawMandelbrot(GLuint pbo) {
-  glRasterPos2i(0,0);
-    
-  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, pbo);
-  glDrawPixels(WIDTH, HEIGHT, GL_RGBA, GL_UNSIGNED_BYTE, 0);
-  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, 0);
-}
-
-GLuint setupPBO(void) {
-  GLuint pbo;
-
-  glGenBuffersARB(1, &pbo);
-  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, pbo);
-  glBufferDataARB(GL_PIXEL_UNPACK_BUFFER, WIDTH*HEIGHT*4*sizeof(GLubyte), NULL, GL_DYNAMIC_DRAW );
-  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, 0);
-
-  return pbo;
-}
-void countFPS(void) {
+void setWindowTitleStats(void) {
   static int t1 = 0;
-  int t2diff = timeGetTime() - t1;
+  int t2diff = clock() - t1;
   
   float fps = 1.0f / t2diff * 1000;
+  
+  const int TITLE_SIZE = 200;
 
-  char title[200];
-  memset(title,0,200);
-  sprintf_s(title, 200, "FPS: %f", fps);
+  char title[TITLE_SIZE];
+  memset(title, 0, TITLE_SIZE);
+  sprintf_s(title, TITLE_SIZE, "zoomFactor: %f, FPS: %f", gw->zoomFactor, fps);
 
   glutSetWindowTitle(title);
-  t1 = timeGetTime();
+  t1 = clock();
 }
 
-void generateMandelbrot(GLuint pbo) {
+void renderMandelbrot(GLuint pbo) {
   cudaGLRegisterBufferObject(pbo);
 
-  int *p;
-  cudaGLMapBufferObject((void**)&p, pbo);
+  int *cudaPBO;
+  cudaGLMapBufferObject((void**)&cudaPBO, pbo);
 
   dim3 dimBlock(16, 16);
-  dim3 dimGrid((WIDTH + dimBlock.x - 1) / dimBlock.x, (HEIGHT + dimBlock.y - 1) / dimBlock.y);
+  dim3 dimGrid((gw->windowWidth + dimBlock.x - 1) / dimBlock.x, (gw->windowHeight + dimBlock.y - 1) / dimBlock.y);
 
-  mandel<<<dimGrid, dimBlock>>>(WIDTH, HEIGHT, p);
+  mandel<<<dimGrid, dimBlock>>>(gw->windowWidth, gw->windowHeight, gw->xshift, gw->yshift, gw->zoomFactor, cudaPBO);
 
   cudaGLUnmapBufferObject(pbo);
   cudaGLUnregisterBufferObject(pbo);
 }
 
-void handleKeyInput(unsigned char key, int x, int y) {
-    switch(key) {
-    case(27) :
-        exit(0);
-        break;
+__global__ void mandel(int width, int height, float xshift, float yshift, float zoomFactor, int* output) {
+  const int ITERATIONS = 100;
+
+  int pixelx = blockIdx.x * blockDim.x + threadIdx.x;
+  int pixely = blockIdx.y * blockDim.y + threadIdx.y;
+
+  if ((pixelx >= width) || (pixely >= height))
+    return;
+
+  int pixelLoc = (width * pixely) + pixelx;
+
+  float xstart = (-2.0f * zoomFactor) + xshift;
+  float ystart = (1.0f * zoomFactor) + yshift;
+
+  float widthPerPixel = (3.0f * zoomFactor) / width;
+  float heightPerPixel = (2.0f * zoomFactor) / height;
+
+  float2 zn, c;
+  c.x = xstart + (widthPerPixel * pixelx);
+  c.y = ystart - (heightPerPixel * pixely);
+
+  zn.x = 0.0f;
+  zn.y = 0.0f;
+  
+  for(int i = 0; i < ITERATIONS; i++) {
+    //zn = zn*zn + c
+    float newznx = (zn.x * zn.x) - (zn.y * zn.y) + c.x;
+    float newzny = (zn.y * zn.x) + (zn.x * zn.y) + c.y;
+    
+    zn.x = newznx;
+    zn.y = newzny;
+
+    if ((zn.x * zn.x) + (zn.y * zn.y) > 4) {
+      int r=0,g=0,b=0;
+
+      //colour it white if it took longer than half the max iterations leave the set
+      float halfMaxIterations = ITERATIONS/2.0f;
+
+      if (i < halfMaxIterations) {
+        r = (int)((i / halfMaxIterations) * 255);
+        g = 0;
+        b = 0;
+      } else {
+        float brightness = ((i - halfMaxIterations) / halfMaxIterations);
+
+        r = 255;
+        g = (int)(brightness * 255) << 8;
+        b = (int)(brightness * 255) << 16;
+      }
+
+      output[pixelLoc] = (r | g | b);
+      break;
     }
+  }
+}
+
+void displayPBO(GLuint pbo) {
+  glRasterPos2i(0,0);
+    
+  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, pbo);
+  glDrawPixels(gw->windowWidth, gw->windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, 0);
 }
