@@ -68,6 +68,8 @@ void renderMandelbrot(GLuint pbo) {
 
   mandel<<<dimGrid, dimBlock>>>(gw->windowWidth, gw->windowHeight, gw->xshift, gw->yshift, gw->zoomFactor, cudaPBO);
 
+  cudaThreadSynchronize();
+
   cudaGLUnmapBufferObject(pbo);
   cudaGLUnregisterBufferObject(pbo);
 }
