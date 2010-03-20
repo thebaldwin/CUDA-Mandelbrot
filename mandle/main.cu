@@ -19,6 +19,7 @@ void renderMandelbrot(GLuint pbo);
 void displayPBO(GLuint pbo);
 
 __global__ void mandel(int width, int height, float xshift, float yshift, float zoomFactor, int* output);
+__device__ int calcColour(float2 zn, float2 c);
 
 GlutWindow* gw;
 
@@ -102,6 +103,12 @@ __global__ void mandel(int width, int height, float xshift, float yshift, float 
   zn.x = 0.0f;
   zn.y = 0.0f;
   
+  output[pixelLoc] = calcColour(zn, c);
+}
+
+__device__ int calcColour(float2 zn, float2 c) {
+  const int ITERATIONS = 100;
+
   for(int i = 0; i < ITERATIONS; i++) {
     //zn = zn*zn + c
     float newznx = (zn.x * zn.x) - (zn.y * zn.y) + c.x;
@@ -117,20 +124,20 @@ __global__ void mandel(int width, int height, float xshift, float yshift, float 
       float halfMaxIterations = ITERATIONS/2.0f;
 
       if (i < halfMaxIterations) {
-        r = (int)((i / halfMaxIterations) * 255);
-        g = 0;
-        b = 0;
+        r = 0;
+        g = (int)((i / halfMaxIterations) * 255);
+        b = (int)((i / halfMaxIterations) * 255);
       } else {
         float brightness = ((i - halfMaxIterations) / halfMaxIterations);
 
         r = 255;
-        g = (int)(brightness * 255) << 8;
-        b = (int)(brightness * 255) << 16;
+        g = (int)(brightness * 255);
+        b = (int)(brightness * 255);
       }
 
-      output[pixelLoc] = (r | g | b);
-      break;
+      return (r | (g << 8) | (b << 16) );
     }
   }
+  return 0;
 }
 
