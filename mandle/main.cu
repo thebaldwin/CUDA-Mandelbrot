@@ -3,6 +3,10 @@
 #include <iostream>
 #include <ctime>
 
+#ifdef _MSC_VER
+  #define snprintf _snprintf
+#endif
+
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 
@@ -51,7 +55,7 @@ void setWindowTitleStats(void) {
 
   char title[TITLE_SIZE];
   memset(title, 0, TITLE_SIZE);
-  sprintf_s(title, TITLE_SIZE, "zoomFactor: %f, FPS: %f", gw->zoomFactor, fps);
+  snprintf(title, TITLE_SIZE, "zoomFactor: %f, FPS: %f", gw->zoomFactor, fps);
 
   glutSetWindowTitle(title);
   t1 = clock();
