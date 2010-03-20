@@ -15,6 +15,8 @@ public:
   static float zoomFactor;
 
 private:
+  static GLuint texture;
+
   static int previousx;
   static int previousy;
 
@@ -28,6 +30,7 @@ public:
 
   static GLuint setupPBO();
   static void displayPBO(GLuint);
+  static void displayPBOTexture(GLuint);
 
 private:
   static void handleKeyInput(unsigned char, int, int);
@@ -39,6 +42,7 @@ private:
   static void mouseWheel(int, int, int, int);
 
   static void defaultGlutDrawLoop();
+  static void setupTexturing();
 
 };
 

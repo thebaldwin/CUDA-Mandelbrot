@@ -1,4 +1,5 @@
 #include "glutwindow.h"
+#include <cstdlib>
 
 int GlutWindow::windowWidth;
 int GlutWindow::windowHeight;
@@ -8,15 +9,16 @@ float GlutWindow::zoomFactor = 1.0f;
 int GlutWindow::buttonPressed = GLUT_UP;
 int GlutWindow::previousx = 0;
 int GlutWindow::previousy = 0;
+GLuint GlutWindow::texture = 0;
 
 const char* GlutWindow::DEFAULT_WINDOW_TEXT = "Default Window Text";
 
 GlutWindow::GlutWindow(const char* windowText, int argc, char** argv, int width, int height)
 {
-    windowWidth = width;
-    windowHeight = height;
+  windowWidth = width;
+  windowHeight = height;
 
-    setup(windowText, argc, argv);
+  setup(windowText, argc, argv);
 }
 
 GlutWindow::~GlutWindow() {
@@ -25,6 +27,7 @@ GlutWindow::~GlutWindow() {
 void GlutWindow::setup(const char* windowText, int argc, char** argv) {
   glutInit(&argc, argv);
   glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE);
+
   glutInitWindowSize(windowWidth, windowHeight);
 
   glutCreateWindow(windowText);
@@ -38,6 +41,16 @@ void GlutWindow::setup(const char* windowText, int argc, char** argv) {
   glutReshapeFunc(&GlutWindow::reshape);
 
   glutDisplayFunc(&GlutWindow::defaultGlutDrawLoop);
+
+  setupTexturing();
+}
+
+void GlutWindow::handleKeyInput(unsigned char key, int /*x*/, int /*y*/) {
+  switch(key) {
+    case(27) :
+        exit(0);
+        break;
+  }
 }
 
 void GlutWindow::mouseWheel(int /*wheel*/, int dir, int /*x*/, int /*y*/) {
@@ -45,12 +58,6 @@ void GlutWindow::mouseWheel(int /*wheel*/, int dir, int /*x*/, int /*y*/) {
     zoomFactor /= 2;
   else
     zoomFactor *= 2;
-}
-
-void GlutWindow::mouseFunc(int /*button*/, int state, int x, int y) {
-  buttonPressed = state;
-  previousx = x;
-  previousy = y;
 }
 
 void GlutWindow::mouseMove(int x, int y) {
@@ -64,6 +71,12 @@ void GlutWindow::mouseMove(int x, int y) {
     xshift += zoomFactor*((3.0f / windowWidth) * xPixelChange);
     yshift += zoomFactor*((2.0f / windowHeight) * yPixelChange);
   }
+}
+
+void GlutWindow::mouseFunc(int /*button*/, int state, int x, int y) {
+  buttonPressed = state;
+  previousx = x;
+  previousy = y;
 }
 
 void GlutWindow::defaultGlutDrawLoop(void) {
@@ -83,25 +96,32 @@ void GlutWindow::reshape(int w, int h) {
   glLoadIdentity();
   gluOrtho2D(0.0, GLdouble(w), 0.0, GLdouble(h));
   glMatrixMode(GL_MODELVIEW);
+
+  setupTexturing();
 }
 
 GLuint GlutWindow::setupPBO(void) {
   GLuint pbo;
 
   glGenBuffersARB(1, &pbo);
-  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, pbo);
-  glBufferDataARB(GL_PIXEL_UNPACK_BUFFER, (windowWidth * windowHeight * 4 * sizeof(GLubyte)), NULL, GL_DYNAMIC_DRAW );
-  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, 0);
+  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, pbo);
+  glBufferDataARB(GL_PIXEL_UNPACK_BUFFER_ARB, (windowWidth * windowHeight * 4 * sizeof(GLubyte)), 0, GL_STREAM_COPY );
+  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_ARB, 0);
   
   return pbo;
 }
+void GlutWindow::setupTexturing() {
+  if (texture)
+    glDeleteTextures(1, &texture);
 
-void GlutWindow::handleKeyInput(unsigned char key, int /*x*/, int /*y*/) {
-    switch(key) {
-      case(27) :
-          exit(0);
-          break;
-    }
+  glEnable(GL_TEXTURE_2D);
+  glGenTextures(1, &texture);
+  glBindTexture(GL_TEXTURE_2D, texture);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, windowWidth, windowHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 }
 
 void GlutWindow::displayPBO(GLuint pbo) {
@@ -109,5 +129,25 @@ void GlutWindow::displayPBO(GLuint pbo) {
     
   glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, pbo);
   glDrawPixels(windowWidth, windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, 0);
+}
+
+void GlutWindow::displayPBOTexture(GLuint pbo) {
+  glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, pbo);
+  glBindTexture(GL_TEXTURE_2D, texture);
+  glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, windowWidth, windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+  glDisable(GL_DEPTH_TEST);
+
+  glBegin(GL_QUADS);
+    glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, 0.0f);
+    glTexCoord2f(1.0f, 0.0f); glVertex2f((float)windowWidth, 0.0f);
+    glTexCoord2f(1.0f, 1.0f); glVertex2f((float)windowWidth, (float)windowHeight);
+    glTexCoord2f(0.0f, 1.0f); glVertex2f(0.0f, (float)windowHeight);
+  glEnd();
+
+  glEnable(GL_DEPTH_TEST);
+
+  glBindTexture(GL_TEXTURE_2D, 0);
   glBindBufferARB(GL_PIXEL_UNPACK_BUFFER, 0);
 }

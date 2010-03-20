@@ -31,13 +31,16 @@ int main(int argc, char** argv) {
 }
 
 void glutDrawLoop(void) {
-  glClearColor(0.0f, 1.0f, 1.0f, 0.0f);
-  glClear(GL_COLOR_BUFFER_BIT);
+  glClearColor(0.8f, 1.0f, 1.0f, 0.0f);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  glClearDepth(0.0f);
+
+  glLoadIdentity();
 
   GLuint pbo = gw->setupPBO();
   renderMandelbrot(pbo);
-  gw->displayPBO(pbo);
-
+  gw->displayPBOTexture(pbo);
+  
   setWindowTitleStats();
 
   glutSwapBuffers();
@@ -80,8 +83,6 @@ void renderMandelbrot(GLuint pbo) {
 }
 
 __global__ void mandel(int width, int height, float xshift, float yshift, float zoomFactor, int* output) {
-  const int ITERATIONS = 100;
-
   int pixelx = blockIdx.x * blockDim.x + threadIdx.x;
   int pixely = blockIdx.y * blockDim.y + threadIdx.y;
 
