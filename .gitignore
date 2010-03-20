@@ -7,3 +7,6 @@ a.out
 fractal
 vc90.pdb
 mandle.vcproj.*
+nbproject
+*.mk
+.dep.inc
