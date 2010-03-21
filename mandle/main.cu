@@ -50,10 +50,13 @@ void glutDrawLoop(void) {
 }
 
 void setWindowTitleStats(void) {
-  static int t1 = 0;
-  int t2diff = clock() - t1;
+  static timespec t1;
+  timespec tnow;
+  clock_gettime(CLOCK_REALTIME, &tnow);
+          
+  long t2diff = tnow.tv_nsec - t1.tv_nsec;
   
-  float fps = 1.0f / t2diff * 1000;
+  float fps = 1.0f / t2diff * 1000000000;
   
   const int TITLE_SIZE = 200;
 
@@ -62,7 +65,7 @@ void setWindowTitleStats(void) {
   snprintf(title, TITLE_SIZE, "zoomFactor: %f, FPS: %f", gw->zoomFactor, fps);
 
   glutSetWindowTitle(title);
-  t1 = clock();
+  clock_gettime(CLOCK_REALTIME, &t1);
 }
 
 void renderMandelbrot(GLuint pbo) {
@@ -83,26 +86,25 @@ void renderMandelbrot(GLuint pbo) {
 }
 
 __global__ void mandel(int width, int height, float xshift, float yshift, float zoomFactor, int* output) {
-  int pixelx = blockIdx.x * blockDim.x + threadIdx.x;
-  int pixely = blockIdx.y * blockDim.y + threadIdx.y;
+  int2 pixel = make_int2(blockIdx.x * blockDim.x + threadIdx.x,
+                         blockIdx.y * blockDim.y + threadIdx.y);
 
-  if ((pixelx >= width) || (pixely >= height))
+  if ((pixel.x >= width) || (pixel.y >= height))
     return;
 
-  int pixelLoc = (width * pixely) + pixelx;
+  int pixelLoc = (width * pixel.y) + pixel.x;
 
-  float xstart = (-2.0f * zoomFactor) + xshift;
-  float ystart = (1.0f * zoomFactor) + yshift;
+  float2 start = make_float2((-2.0f * zoomFactor) + xshift,
+                             (1.0f * zoomFactor) + yshift);
 
   float widthPerPixel = (3.0f * zoomFactor) / width;
   float heightPerPixel = (2.0f * zoomFactor) / height;
 
-  float2 zn, c;
-  c.x = xstart + (widthPerPixel * pixelx);
-  c.y = ystart - (heightPerPixel * pixely);
-
-  zn.x = 0.0f;
-  zn.y = 0.0f;
+  float2 c = make_float2(start.x + (widthPerPixel * pixel.x),
+                          start.y - (heightPerPixel * pixel.y));
+  
+  float2 zn = make_float2(0.0f, 0.0f);
+  //float2 zn = make_float2(-0.1f, 0.7f); //make_float2(0.39f, -0.2f);
   
   output[pixelLoc] = calcColour(zn, c);
 }
@@ -111,6 +113,7 @@ __device__ int calcColour(float2 zn, float2 c) {
   const int ITERATIONS = 100;
 
   for(int i = 0; i < ITERATIONS; i++) {
+
     //zn = zn*zn + c
     float newznx = (zn.x * zn.x) - (zn.y * zn.y) + c.x;
     float newzny = (zn.y * zn.x) + (zn.x * zn.y) + c.y;
